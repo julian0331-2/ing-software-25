@@ -1,0 +1,226 @@
+Código MAIN (VISUALSTUDIOCODE):
+import flet as ft
+from pedidos import vista_pedidos
+from cobros import vista_cobros
+from inventario import vista_inventario
+from reservas import vista_reservas
+from reportes import vista_reportes
+
+credenciales = {
+    "Administrador_admin1": "admin123",
+    "Mesero_mesero1": "mesero123",
+    "Cajero_cajero1": "cajero123",
+    "AdministradorInventario_inventario1": "inventario123"
+}
+
+def app(page: ft.Page):
+    page.title = "Sistema de Restaurante"
+    page.window_width = 1000
+    page.window_height = 700
+
+    usuario_rol = None
+
+    def limpiar_vistas():
+        page.views.clear()
+
+    def mostrar_login():
+        limpiar_vistas()
+
+        input_usuario = ft.TextField(label="Usuario", width=300)
+        input_rol = ft.Dropdown(
+            label="Rol",
+            width=300,
+            options=[
+                ft.dropdown.Option("Administrador"),
+                ft.dropdown.Option("Mesero"),
+                ft.dropdown.Option("Cajero"),
+                ft.dropdown.Option("AdministradorInventario"),
+            ],
+        )
+        input_password = ft.TextField(label="Contraseña", password=True, width=300)
+        mensaje = ft.Text()
+
+        def validar_login(e):
+            nonlocal usuario_rol
+
+            usuario = input_usuario.value.strip()
+            rol = input_rol.value
+            pw = input_password.value.strip()
+
+            if not usuario or not rol or not pw:
+                mensaje.value = "Complete todos los campos."
+                mensaje.color = ft.Colors.RED
+                page.update()
+                return
+
+            clave = f"{rol}_{usuario}"
+
+            if clave not in credenciales:
+                mensaje.value = "Usuario o rol incorrecto."
+                mensaje.color = ft.Colors.RED
+                page.update()
+                return
+            if credenciales[clave] != pw:
+                mensaje.value = "Contraseña incorrecta."
+                mensaje.color = ft.Colors.RED
+                page.update()
+                return
+
+            usuario_rol = rol
+            mostrar_menu()
+
+        btn_login = ft.ElevatedButton("Ingresar", on_click=validar_login)
+
+        login_view = ft.View(
+            route="/login",
+            controls=[
+                ft.Column(
+                    [
+                        ft.Text("Inicio de sesión", size=24, weight="bold"),
+                        input_rol,
+                        input_usuario,
+                        input_password,
+                        btn_login,
+                        mensaje,
+                    ],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=15,
+                )
+            ],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+        )
+
+        page.views.append(login_view)
+        page.update()
+        page.go("/login")
+
+    def mostrar_menu():
+        limpiar_vistas()
+
+        botones = []
+        if usuario_rol == "Administrador":
+            botones.extend([
+                ft.ElevatedButton("Gestión de Pedidos", on_click=lambda _: page.go("/pedidos"), bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE),
+                ft.ElevatedButton("Cobros y Facturación", on_click=lambda _: page.go("/cobros"), bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE),
+                ft.ElevatedButton("Gestión de Inventario", on_click=lambda _: page.go("/inventario"), bgcolor=ft.Colors.AMBER, color=ft.Colors.WHITE),
+                ft.ElevatedButton("Gestión de Reservas", on_click=lambda _: page.go("/reservas"), bgcolor=ft.Colors.PURPLE, color=ft.Colors.WHITE),
+                ft.ElevatedButton("Reportes y Estadísticas", on_click=lambda _: page.go("/reportes"), bgcolor=ft.Colors.CYAN, color=ft.Colors.WHITE),
+            ])
+        elif usuario_rol == "Mesero":
+            botones.extend([
+                ft.ElevatedButton("Gestión de Pedidos", on_click=lambda _: page.go("/pedidos"), bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE),
+                ft.ElevatedButton("Gestión de Reservas", on_click=lambda _: page.go("/reservas"), bgcolor=ft.Colors.PURPLE, color=ft.Colors.WHITE),
+            ])
+        elif usuario_rol == "Cajero":
+            botones.append(
+                ft.ElevatedButton("Cobros y Facturación", on_click=lambda _: page.go("/cobros"), bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE)
+            )
+        elif usuario_rol == "AdministradorInventario":
+            botones.append(
+                ft.ElevatedButton("Gestión de Inventario", on_click=lambda _: page.go("/inventario"), bgcolor=ft.Colors.AMBER, color=ft.Colors.WHITE)
+            )
+        else:
+            botones.append(ft.Text("Rol no reconocido."))
+
+        def cerrar_sesion(e):
+            nonlocal usuario_rol
+            usuario_rol = None
+            mostrar_login()
+
+        menu_view = ft.View(
+            route="/menu",
+            controls=[
+                ft.AppBar(
+                    title=ft.Text(f"Bienvenido, {usuario_rol}"),
+                    actions=[ft.ElevatedButton("Cerrar sesión", on_click=cerrar_sesion)]
+                ),
+                ft.Column(
+                    [ft.Text("Seleccione una opción", size=20, weight="bold")] + botones,
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=20,
+                ),
+            ],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+        )
+        page.views.append(menu_view)
+        page.update()
+        page.go("/menu")
+
+    def navegar(e):
+        if e.route == "/login":
+            mostrar_login()
+        elif e.route == "/menu":
+            if usuario_rol is None:
+                page.go("/login")
+            else:
+                mostrar_menu()
+        elif e.route == "/pedidos":
+            if usuario_rol in ["Administrador", "Mesero"]:
+                page.views.clear()
+                vista = vista_pedidos(page)
+                vista.controls[0] = ft.AppBar(
+                    leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: page.go("/menu")),
+                    title=ft.Text("Gestión de Pedidos"),
+                    center_title=True
+                )
+                page.views.append(vista)
+            else:
+                page.go("/menu")
+        elif e.route == "/cobros":
+            if usuario_rol in ["Administrador", "Cajero"]:
+                page.views.clear()
+                vista = vista_cobros(page)
+                vista.controls[0] = ft.AppBar(
+                    leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: page.go("/menu")),
+                    title=ft.Text("Cobros y Facturación"),
+                    center_title=True
+                )
+                page.views.append(vista)
+            else:
+                page.go("/menu")
+        elif e.route == "/inventario":
+            if usuario_rol in ["Administrador", "AdministradorInventario"]:
+                page.views.clear()
+                vista = vista_inventario(page)
+                vista.controls[0] = ft.AppBar(
+                    leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: page.go("/menu")),
+                    title=ft.Text("Gestión de Inventario"),
+                    center_title=True
+                )
+                page.views.append(vista)
+            else:
+                page.go("/menu")
+        elif e.route == "/reservas":
+            if usuario_rol in ["Administrador", "Mesero"]:
+                page.views.clear()
+                vista = vista_reservas(page)
+                vista.controls[0] = ft.AppBar(
+                    leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: page.go("/menu")),
+                    title=ft.Text("Gestión de Reservas"),
+                    center_title=True
+                )
+                page.views.append(vista)
+            else:
+                page.go("/menu")
+        elif e.route == "/reportes":
+            if usuario_rol == "Administrador":
+                page.views.clear()
+                vista = vista_reportes(page)
+                vista.controls[0] = ft.AppBar(
+                    leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: page.go("/menu")),
+                    title=ft.Text("Reportes y Estadísticas"),
+                    center_title=True
+                )
+                page.views.append(vista)
+            else:
+                page.go("/menu")
+        else:
+            page.go("/login")
+        page.update()
+
+    page.on_route_change = navegar
+    page.go("/login")
+
+ft.app(target=app)
