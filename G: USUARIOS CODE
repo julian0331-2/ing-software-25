@@ -1,0 +1,88 @@
+codigo de gestion de usuarios
+import flet as ft
+
+"Lista simple de usuarios con rol y contraseña (inicial con usuarios predeterminados)"
+usuarios = [
+    {"rol": "Administrador", "usuario": "admin", "password": "admin123"},
+    {"rol": "Mesero", "usuario": "juan", "password": "mesero123"},
+    {"rol": "Cajero", "usuario": "maria", "password": "cajero123"},
+    {"rol": "AdministradorInventario", "usuario": "carlos", "password": "inventario123"},
+]
+
+def vista_usuarios(page: ft.Page):
+
+    def actualizar_lista():
+        list_usuarios.controls.clear()
+        for u in usuarios:
+            list_usuarios.controls.append(
+                ft.Text(f"{u['rol']} - {u['usuario']}")
+            )
+        page.update()
+
+    def agregar_usuario(e):
+        rol = dropdown_rol.value
+        usuario = input_usuario.value.strip()
+        password = input_password.value.strip()
+
+        if not rol or not usuario or not password:
+            mensaje.value = "Complete todos los campos para agregar."
+            mensaje.color = ft.Colors.RED
+            page.update()
+            return
+
+        "Validar que usuario no exista con mismo rol"
+        for u in usuarios:
+            if u["rol"] == rol and u["usuario"] == usuario:
+                mensaje.value = "El usuario ya existe para ese rol."
+                mensaje.color = ft.Colors.RED
+                page.update()
+                return
+
+        usuarios.append({"rol": rol, "usuario": usuario, "password": password})
+        mensaje.value = f"Usuario {usuario} agregado correctamente."
+        mensaje.color = ft.Colors.GREEN
+        input_usuario.value = ""
+        input_password.value = ""
+        actualizar_lista()
+        page.update()
+
+    list_usuarios = ft.Column(spacing=5)
+
+    dropdown_rol = ft.Dropdown(
+        label="Rol",
+        width=200,
+        options=[
+            ft.dropdown.Option("Administrador"),
+            ft.dropdown.Option("Mesero"),
+            ft.dropdown.Option("Cajero"),
+            ft.dropdown.Option("AdministradorInventario"),
+        ],
+    )
+    input_usuario = ft.TextField(label="Usuario", width=200)
+    input_password = ft.TextField(label="Contraseña", password=True, width=200)
+    mensaje = ft.Text()
+
+    btn_agregar = ft.ElevatedButton("Agregar Usuario", on_click=agregar_usuario)
+
+    actualizar_lista()
+
+    view = ft.View(
+        route="/usuarios",
+        controls=[
+            ft.Column(
+                [
+                    ft.Text("Gestión de Usuarios", size=24, weight="bold"),
+                    ft.Row([dropdown_rol, input_usuario, input_password, btn_agregar], spacing=10),
+                    mensaje,
+                    ft.Text("Usuarios registrados:", size=16, weight="bold"),
+                    list_usuarios,
+                ],
+                alignment=ft.MainAxisAlignment.START,
+                horizontal_alignment=ft.CrossAxisAlignment.START,
+                spacing=20,
+            )
+        ],
+        vertical_alignment=ft.MainAxisAlignment.START,
+    )
+
+    return view
