@@ -1,0 +1,98 @@
+codigo de gestion de reportes
+import flet as ft
+import json
+import os
+from datetime import datetime
+
+# Rutas de archivos (ajusta si es necesario)
+PEDIDOS_FILE = "entregados.json"  # Cambiado a entregados.json
+INVENTARIO_FILE = "inventario.json"
+FACTURAS_DIR = "."  # Carpeta donde se guardan los PDFs
+
+def vista_reportes(page: ft.Page):
+    pedidos_column = ft.Column()
+    inventario_column = ft.Column()
+    cobros_column = ft.Column()
+
+    def generar_reporte_pedidos(e):
+        pedidos_column.controls.clear()
+        if os.path.exists(PEDIDOS_FILE):
+            with open(PEDIDOS_FILE, "r", encoding="utf-8") as f:
+                pedidos = json.load(f)
+
+            productos_totales = {}
+            # Se asume que entregados.json es un dict con mesas como claves
+            for mesa, datos in pedidos.items():
+                for prod in datos.get("productos", []):
+                    nombre = prod["producto"]
+                    if nombre not in productos_totales:
+                        productos_totales[nombre] = {
+                            "cantidad": 0,
+                            "precio_unitario": prod["monto_total"] / prod["cantidad"],
+                            "monto_total": 0
+                        }
+                    productos_totales[nombre]["cantidad"] += prod["cantidad"]
+                    productos_totales[nombre]["monto_total"] += prod["monto_total"]
+
+            productos_ordenados = sorted(productos_totales.items(), key=lambda x: x[1]["cantidad"], reverse=True)
+
+            pedidos_column.controls.append(ft.Text("Pedidos más realizados:", size=18, weight="bold"))
+            for nombre, data in productos_ordenados:
+                pedidos_column.controls.append(ft.Text(
+                    f"{nombre} - Cantidad: {data['cantidad']} - Unitario: ${data['precio_unitario']:.2f} - Total: ${data['monto_total']:.2f}"
+                ))
+        else:
+            pedidos_column.controls.append(ft.Text("No se encontró el archivo de pedidos."))
+        page.update()
+
+    def generar_reporte_inventario(e):
+        inventario_column.controls.clear()
+        if os.path.exists(INVENTARIO_FILE):
+            with open(INVENTARIO_FILE, "r", encoding="utf-8") as f:
+                inventario = json.load(f)
+
+            inventario_column.controls.append(ft.Text("Inventario registrado:", size=18, weight="bold"))
+            for producto in inventario:
+                inventario_column.controls.append(ft.Text(
+                    f"{producto['producto']} - Stock: {producto['stock']} - Fecha: {producto.get('fecha', 'N/D')}"
+                ))
+        else:
+            inventario_column.controls.append(ft.Text("No se encontró el archivo de inventario."))
+        page.update()
+
+    def generar_reporte_cobros(e):
+        cobros_column.controls.clear()
+        archivos = [f for f in os.listdir(FACTURAS_DIR) if f.startswith("factura_mesa_") and f.endswith(".pdf")]
+
+        cobros_column.controls.append(ft.Text("Facturas generadas:", size=18, weight="bold"))
+        if archivos:
+            for archivo in archivos:
+                cobros_column.controls.append(ft.Text(archivo))
+        else:
+            cobros_column.controls.append(ft.Text("No se encontraron facturas."))
+        page.update()
+
+    return ft.View(
+        route="/reportes",
+        controls=[
+            ft.AppBar(
+                title=ft.Text("Reportes y Estadísticas"),
+                leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
+            ),
+            ft.Row([
+                ft.ElevatedButton("Generar Reporte de Pedidos", on_click=generar_reporte_pedidos),
+                ft.ElevatedButton("Generar Reporte de Inventario", on_click=generar_reporte_inventario),
+                ft.ElevatedButton("Generar Reporte de Cobros", on_click=generar_reporte_cobros),
+            ], spacing=10),
+            ft.Divider(),
+            ft.Text("Resultados:", size=16, weight="bold"),
+            ft.Text("Pedidos", size=14, weight="bold"),
+            pedidos_column,
+            ft.Divider(),
+            ft.Text("Inventario", size=14, weight="bold"),
+            inventario_column,
+            ft.Divider(),
+            ft.Text("Cobros", size=14, weight="bold"),
+            cobros_column,
+        ]
+    )
